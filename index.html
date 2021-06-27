@@ -1,0 +1,328 @@
+﻿<!DOCTYPE html>
+<HTML>
+<HEAD>
+<meta charset="utf-8" />
+    <title>Flicker Image Search</title>
+<script src = "https://code.jquery.com/jquery-1.11.0.min.js"></script>
+<script>
+const bare_url = "http://www.waseda.jp/student/weekly/contents/2007b/137j01.jpg"
+
+// Flicker Photo Searchの実行
+function imageSearch(){ 
+    // ユーザ入力のクエリを取得
+	var query = document.getElementById("searchText").value; 
+	// FlickerPhotoSearchを実行するためのスクリプトを生成
+	var new_script = document.createElement('script');       
+	new_script.src = "https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=cab9881e47ff328fa1bdbff6fe42fc29&format=json&jsoncallback=showResults&safe_search=1&sort=relevance&tags="+query;
+	// 生成したスクリプトを自HTMLの先頭に追加してブラウザに実行させる
+	document.head.appendChild(new_script); 
+}
+// 検索結果の表示（dataに検索結果が入る（FlickerがJSON形式で入れてくれる））
+function showResults(data){ 
+    clearResults(1)
+    // Flickerから戻るdata形式は https://www.flickr.com/services/api/flickr.photos.search.htmlのexample results
+    if (data.stat != "ok"){ // 検索が成功しているかどうか確認、失敗の時はstatusを表示して戻る
+		document.write(data.stat);
+		return;
+	}
+	//最初の8個のデータのみ利用
+	var max_num = 8;
+	if (data.photos.photo.length <8) max_num = data.photos.photo.length;//8個より検索結果が少ない場合の処理
+	for (var i=0; i<max_num; i++){
+	  var photo = data.photos.photo[i];
+      // imgエレメントを生成
+	  var new_image = document.createElement('img'); 
+	  // imgのsrcにi番目の結果(URL)を設定 (
+	  var url="https://farm"+photo.farm+".staticflickr.com/"+photo.server+"/"+photo.id+"_"+photo.secret+"_m.jpg";
+	  new_image.src = url ;
+	  new_image.width="100"; 	 // 幅を100ピクセルに設定 
+ 	  // imgエレメントを検索結果のi番目のセルに追加
+ 	  document.getElementById("r"+String(i)).appendChild(new_image);
+  	}
+}
+//画像をクリアする処理（flgによってクリアの処理を変更）
+function clearResults(flg){
+  switch(flg){
+    case 1://検索結果クリア
+      for(var i=0; i<8; i++){
+        var node = document.getElementById("r"+String(i));
+        //nodeにchildnodeがあれば削除
+        while(node.hasChildNodes()){
+          node.removeChild(node.lastChild);
+        }
+      }
+      break;
+    case 2://保存領域クリア
+      var node = document.getElementById("s");
+      while(node.hasChildNodes()){
+        node.removeChild(node.lastChild);
+      }
+      break;
+    case 3: //保存領域の重複画像クリア
+      //保存領域のエレメントをnodeに設定
+      var node = document.getElementById("s");
+      var base_num = node.childNodes.length - 1;
+      var check_num = base_num - 1;
+      while(base_num >= 0){
+        while(check_num >= 0){
+          if(node.childNodes[base_num].src == node.childNodes[check_num].src){
+            //同一であれば、2枚目の画像を削除
+            node.removeChild(node.childNodes[base_num]);
+            break;
+          }
+          check_num--;
+        }
+        base_num--;
+        check_num = base_num - 1;
+      }
+      break;
+  }
+}
+  
+//flg番目の画像を画像保存領域にコピー
+function saveResult(flg){
+  //imgエレメントを生成、saved_imageと命名
+  var saved_image = document.createElement('img');
+  //flg番目の検索結果画像URLをsaved_imageのsrcタグに設定
+  saved_image.src = document.getElementById("r"+flg).childNodes[0].src;
+  saved_image.width="100";
+  //saved_imageエレメントを画像保蔵領域に追加
+  document.getElementById("s").appendChild(saved_image);
+  document.getElementById("s").lastChild.addEventListener("click",function(){onClickDo(this);});
+}
+//保存領域画像クリック
+function onClickDo(node){
+  if(node.src != bare_url){
+    alert("すでに選択しています。")
+    return;
+  }
+  getCount++;
+  if(getCount>2){
+    return;
+  }
+  var parent_node=document.getElementById("s");
+  if (node.src == bare_url){
+    node.src = node.alt;
+  } else{
+    node.alt = node.src;
+    node.src = bare_url;
+  }
+   var node = document.getElementById("s");
+   var base_num = node.childNodes.length - 1;
+   var check_num = base_num - 1;
+   var removed = 0;
+   while(base_num >= 0){
+    while(check_num >= 0){
+      if(node.childNodes[base_num].src != bare_url && node.childNodes[check_num].src != bare_url){
+        if(node.childNodes[base_num].src == node.childNodes[check_num].src){
+          //同一であれば、両方の画像を削除
+          node.removeChild(node.childNodes[base_num]);
+          node.removeChild(node.childNodes[check_num]);
+          if(playerName == "A"){
+            pointA++;
+            document.getElementById('a_area').innerHTML=pointA;
+          }else if(playerName == "B"){
+            pointB++;
+            document.getElementById('b_area').innerHTML=pointB;
+          }else{
+            pointC++;
+            document.getElementById('c_area').innerHTML=pointC;
+          }
+          //船岡　同一なのでもう一度できる
+          timerStart();
+          getCount=0;
+          break;
+        }else if(base_num > -1 && check_num > -1){
+          setTimeout(
+            function () {
+              //裏返す
+              allBare();
+              //船岡　失敗したので次の人へ
+              startNextPlayer();
+              getCount=0;
+          }, 1000);
+          
+          break;
+        }
+      }
+      check_num--;
+    }
+    base_num--;
+    check_num = base_num - 1;
+   }
+  if(node.childNodes.length == 0 ){
+      alert("ゲーム終了！");
+      alert(`只今のポイント A:${pointA} B:${pointB} C:${pointC}`);
+    　timerStop();
+   }
+}
+
+/*****************
+船岡分
+******************/
+let playerName;//プレイヤー名
+const limitTime = 10; //タイマーの秒数
+let leftTime; //残り秒数
+let timer; //setInterval用
+let pointA=0;
+let pointB=0;
+let pointC=0;
+let getCount=0;
+
+
+//ゲーム開始
+function gameStart(){
+  playerName = "A";
+  jQuery("#player").text("現在のプレイヤー: " + playerName);
+  leftTime = limitTime;
+  jQuery("#time").text("残り時間: " + leftTime + "秒");
+  timerStart();
+}
+ 
+
+//タイマーストップ
+function timerStop(){
+  //タイマー止める
+   clearInterval(timer);
+  
+  //秒数更新
+  leftTime = limitTime;
+}
+   
+//タイマー開始
+function timerStart(){
+  //初期化
+   timerStop();
+  //タイマー本体
+   timer = setInterval(function(){
+      if(leftTime <= 0) {//時間切れ
+        //タイマー止める
+        timerStop();
+        //裏返す
+        allBare();
+        //次の人へ
+        startNextPlayer();
+      } else {
+        //カウント
+        leftTime--;
+        //秒数表示
+        jQuery("#time").text("残り時間: " + leftTime + "秒");
+      }
+   }, 1000);
+};
+  
+//次の人に移行-1
+function startNextPlayer(){
+  timerStop();
+  if(playerName == "A"){
+    changePlayer("B");
+  }else if(playerName == "B"){
+    changePlayer("C");
+  }else{
+    changePlayer("A");
+  }
+  timerStart();
+}
+
+//次の人に移行-2
+function changePlayer(name){
+  playerName = name;
+  leftTime = limitTime;
+  jQuery("#player").text("現在のプレイヤー: " + name);
+  jQuery("#time").text("残り時間: " + leftTime + "秒");
+}
+
+//すべて裏返す処理
+function allBare(){
+  const node = document.getElementById("s");
+  for(var i=0;i < node.childNodes.length; i++){
+    try {
+      node.childNodes[i].src = bare_url;
+    } catch (e) {
+      console.log(e);
+    }
+  }
+}
+  
+function randomizeImage(){
+  //i
+  clearResults(3);
+
+  //ii
+  var node = document.getElementById("s");
+  var num = node.childNodes.length;
+  
+  var saved_image;
+  for(i=0;i<num;i++){
+    saved_image = document.createElement('img');
+    saved_image.src = node.childNodes[i].src;
+    saved_image.width="100";
+    //saved_imageエレメントを画像保蔵領域に追加
+    node.appendChild(saved_image);
+    node.lastChild.addEventListener("click",function(){onClickDo(this);});
+  }
+  
+  //iii/iv
+  var node = document.getElementById("s");
+  var base_num= node.childNodes.length-1;
+  base_num=node.childNodes.length;
+  for (var i=0; i <= base_num*3; i++ ){
+    var a = Math.floor(Math.random()*base_num)
+    var b = Math.floor(Math.random()*base_num)
+    var tmp = node.childNodes[b].src;
+    node.childNodes[b].src= node.childNodes[a].src;
+    node.childNodes[a].src= tmp;
+  }
+  for(i=0;i<2*num;i++){
+    var node=document.getElementById("s").childNodes[i];
+    var bare_url="http://www.waseda.jp/student/weekly/contents/2007b/137j01.jpg"
+    node.alt = node.src;
+    node.src = bare_url;
+  }
+  
+  /*****************************
+  船岡分 ゲーム開始
+  ******************************/
+  gameStart();
+}
+
+</script>
+</HEAD>
+
+<BODY> 
+<!-- ボタンの配置 -->
+<input id="searchText" type="text" />
+<input id="searchButton" type="button" value="検索" onclick="imageSearch()" />
+<input id="clearButton" type="button" value="検索結果クリア" onclick="clearResults(1)" />
+<input id="clearButton" type="button" value="保存領域クリア" onclick="clearResults(2)" />
+<input id="clearButton" type="button" value="保存領域の重複画像クリア" onclick="clearResults(3)" />
+<br/>
+<h2>画像検索結果</h2>
+<!-- 画像検索結果を8個表示するための領域をテーブルにより構築 -->
+<table border="4" bordercolor="#ffffff" bgcolor="#cccccc">
+ <tr  bgcolor="#ffffff"> <!-- onclickで各領域がクリックされた時にsaveResultを実行するように設定 -->
+ 	<td id="r0" onclick="saveResult(0)" width="100" height="100"></td>
+ 	<td id="r1" onclick="saveResult(1)" width="100"></td><td id="r2" onclick="saveResult(2)" width="100"></td>
+ 	<td id="r3" onclick="saveResult(3)" width="100"></td><td id="r4" onclick="saveResult(4)" width="100"></td>
+ 	<td id="r5" onclick="saveResult(5)" width="100"></td><td id="r6" onclick="saveResult(6)" width="100"></td>
+ 	<td id="r7" onclick="saveResult(7)" width="100"></td>
+ </tr>
+</table>
+<h2>画像保存領域</h2>
+<input id="searchButton" type="button" value="シャッフル" onclick="randomizeImage()" />
+<!-- 画像保存領域はテーブル１セルで構成 -->
+<table border="4" bordercolor="#ffffff" bgcolor="#cccccc">
+ <tr align="top" >
+    <td id="s" width="800" height="100"></td>
+ </tr>
+</table><br>
+<div id = "player">現在のプレイヤー: </div><br>
+<div id = "time">残り時間: </div>
+<BR>点数<BR>Aさん：
+   <div id = "a_area" style="display:inline-block;">0</div>
+ <BR>Bさん：
+   <div id = "b_area" style="display:inline-block;">0</div>
+ <BR>Cさん：
+   <div id = "c_area" style="display:inline-block;">0</div>
+</BODY>
+</HTML>
